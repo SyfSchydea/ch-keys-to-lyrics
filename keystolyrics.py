@@ -24,7 +24,6 @@ Expected notes.chart format:
 }
 """
 
-import sys
 import re
 from operator import attrgetter
 
@@ -36,26 +35,26 @@ class ChartEvent:
 	def get_code(self):
 		return '  {} = E "{}"'.format(self.time, self.name)
 
-def main():
+def main(file_in, file_out):
 	# Echo stuff before events
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			raise Exception("Chart has no Events Section")
 		
 		if re.match(r"\[Events\]\s*", line):
 			break
 		
-		sys.stdout.write(line)
+		file_out.write(line)
 	
 	# Read in current events
-	open_brace_line = sys.stdin.readline()
+	open_brace_line = file_in.readline()
 	if not re.match(r"\{\s*", open_brace_line):
 		raise Exception('Line after "[Events]" should contain only "{"')
 	
 	global_events = []
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			raise Exception("Unexpected EOF during events section")
 		event_match = re.match(r'\s*(\d+)\s*=\s*E\s*"([^"]*)"\s*', line)
@@ -71,7 +70,7 @@ def main():
 	# Read and store diffs before ExpertKeyboard
 	diff_text = ""
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			raise Exception("File has no ExpertKeyboard chart to convert")
 		
@@ -82,12 +81,12 @@ def main():
 	
 	# when we find ExpertKeyboard:
 	# read in the notes, converting them to lyric events
-	open_brace_line = sys.stdin.readline()
+	open_brace_line = file_in.readline()
 	if not re.match(r"\{\s*", open_brace_line):
 		raise Exception('Line after "[ExpertKeyboard]" should contain only "{"')
 	
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			raise Exception("Unexpected EOF during ExpertKeyboard chart")
 		
@@ -124,7 +123,7 @@ def main():
 	
 	# Read and store any diffs after ExpertKeyboard
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			break
 		
@@ -134,14 +133,14 @@ def main():
 	global_events = sorted(global_events, key=attrgetter("time"))
 	
 	# Print the events section
-	print("[Events]")
-	print("{")
+	file_out.write("[Events]\n{\n")
 	for event in global_events:
-		print(event.get_code())
-	print("}")
+		file_out.write(event.get_code() + "\n")
+	file_out.write("}\n")
 	
 	# Print previously stored diffs
-	sys.stdout.write(diff_text)
+	file_out.write(diff_text)
 
 if __name__ == "__main__":
-	main()
+	import sys
+	main(sys.stdin, sys.stdout)
