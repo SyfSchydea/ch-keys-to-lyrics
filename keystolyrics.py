@@ -35,7 +35,7 @@ class ChartEvent:
 	def get_code(self):
 		return '  {} = E "{}"'.format(self.time, self.name)
 
-def main(file_in, file_out):
+def convert_chart(file_in, file_out):
 	# Echo stuff before events
 	while True:
 		line = file_in.readline()
@@ -143,4 +143,37 @@ def main(file_in, file_out):
 
 if __name__ == "__main__":
 	import sys
-	main(sys.stdin, sys.stdout)
+	import shutil
+	from argparse import ArgumentParser
+
+	parser = ArgumentParser(description="Convert notes to lyric events in a Clone Hero chart")
+
+	parser.add_argument("input-file", nargs="?", help="Input chart location")
+	parser.add_argument("output-file", nargs="?", help="Output chart location")
+
+	args = parser.parse_args()
+
+	input_path = getattr(args, "input-file")
+	output_path = getattr(args, "output-file")
+
+	if input_path is None:
+		# No files specified, use stdin and stdout
+		file_in = sys.stdin
+		file_out = sys.stdout
+	
+	elif output_path is None:
+		# One file specified, move to .bak, write to original location
+		output_path = input_path
+		input_path += ".bak"
+
+		shutil.move(output_path, input_path)
+
+		file_in = open(input_path)
+		file_out = open(output_path, "w")
+	
+	else:
+		# Two files specified, use those locations
+		# TODO: this
+		sys.exit(69)
+
+	convert_chart(file_in, file_out)
