@@ -37,16 +37,10 @@ class ChartEvent:
 		return '  {} = E "{}"'.format(self.time, self.name)
 
 def main():
-	# input = None
-	# output = None
-	# if sys 
-	# TODO: Add the option to pass a filename to modify that file instead of using stdin and stdout
-	
 	# Echo stuff before events
 	while True:
 		line = sys.stdin.readline()
 		if line == "":
-			# TODO: this could be handled better, but at the same time it's not really a likely issue
 			raise Exception("Chart has no Events Section")
 		
 		if re.match(r"\[Events\]\s*", line):
@@ -81,7 +75,6 @@ def main():
 		if line == "":
 			raise Exception("File has no ExpertKeyboard chart to convert")
 		
-		# TODO: provide a parameter/flag to specify a different diff to convert to lyrics
 		if re.match(r"\[ExpertKeyboard\]\s*", line):
 			break
 		
