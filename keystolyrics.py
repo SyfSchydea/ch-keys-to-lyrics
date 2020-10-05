@@ -26,6 +26,7 @@ Expected notes.chart format:
 
 import re
 from operator import attrgetter
+from collections import deque
 
 class ChartEvent:
 	def __init__(self, time, name):
@@ -35,64 +36,58 @@ class ChartEvent:
 	def get_code(self):
 		return '  {} = E "{}"'.format(self.time, self.name)
 
+# Regexes used in parsing lyric files
+word_boundary = re.compile(r"\s+")
+syllable_boundary = re.compile(r"-")
+
+blank_line = re.compile(r"\s*\n")
+
 # Manages the song's lyric file, which provides the lyric text to the events
 class LyricFile:
 	__slots__ = [
 		"file",
 
 		"line",
-		"col",
+		"syllable_buffer",
 	]
 
 	def __init__(self, path):
 		self.file = open(path)
 
-		self.line = 1
-		self.col = 0
+		self.line = 0
+		self.syllable_buffer = deque()
 	
+	# Read the next line of syllables from the file. This should coincide with phrase_start events.
+	def start_line(self):
+		# Read a line, skipping any blank lines
+		while True:
+			line = self.file.readline()
+			self.line += 1
+
+			if not blank_line.fullmatch(line):
+				break
+
+		line = line.strip()
+
+		# Nested list of syllables in each word
+		words = [syllable_boundary.split(word) for word in word_boundary.split(line)]
+
+		# Append dashes to syllables
+		for word in words:
+			for i in range(0, len(word) - 1):
+				word[i] += "-"
+
+		# Flatten the list
+		self.syllable_buffer.extend(s for w in words for s in w)
+
 	# Fetch the next syllable from the lyric file
 	def next_syllable(self):
-		syllable = ""
-		include_dash = False
+		return self.syllable_buffer.popleft()
 
-		while True:
-			char = self.file.read(1)
-
-			if char == "\n":
-				self.line += 1
-				self.col = 0
-			else:
-				self.col += 1
-
-			if char == "-":
-				include_dash = True
-				break
-
-			if char in ["", "-", " ", "\t", "\n"]:
-				break
-
-			syllable += char
-
-		if syllable == "":
-			raise Exception(f"Got zero-length syllable at line {self.line}, col {self.col}")
-
-		if include_dash:
-			syllable += "-"
-
-		# Skip over any blank lines
-		while True:
-			pos = self.file.tell()
-			char = self.file.read(1)
-
-			if char != "\n":
-				break
-
-			self.line += 1
-			self.col = 0
-
-		self.file.seek(pos)
-
-		return syllable
+	# Check that a line has ended when it should. This should coincide with phrase_end events
+	def end_line(self):
+		if len(self.syllable_buffer) > 0:
+			raise Exception(f"Line {self.line} ended too early")
 
 	def close(self):
 		self.file.close()
@@ -171,10 +166,12 @@ def convert_chart(file_in, file_out, lyric_file):
 		if note_match:
 			event_type = None
 			if note_match[2] == "1":
+				lyric_file.start_line()
 				event_type = "phrase_start"
 			elif note_match[2] == "2":
 				event_type = "lyric " + lyric_file.next_syllable()
 			elif note_match[2] == "3":
+				lyric_file.end_line()
 				event_type = "phrase_end"
 			
 			event = ChartEvent(note_match[1], event_type)
