@@ -53,6 +53,7 @@ class LyricFile:
 	# Fetch the next syllable from the lyric file
 	def next_syllable(self):
 		syllable = ""
+		include_dash = False
 
 		while True:
 			char = self.file.read(1)
@@ -63,6 +64,10 @@ class LyricFile:
 			else:
 				self.col += 1
 
+			if char == "-":
+				include_dash = True
+				break
+
 			if char in ["", "-", " ", "\t", "\n"]:
 				break
 
@@ -70,6 +75,9 @@ class LyricFile:
 
 		if syllable == "":
 			raise Exception(f"Got zero-length syllable at line {self.line}, col {self.col}")
+
+		if include_dash:
+			syllable += "-"
 
 		# Skip over any blank lines
 		while True:
