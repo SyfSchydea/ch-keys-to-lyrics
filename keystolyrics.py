@@ -24,7 +24,6 @@ Expected notes.chart format:
 }
 """
 
-import sys
 import re
 from operator import attrgetter
 
@@ -36,26 +35,26 @@ class ChartEvent:
 	def get_code(self):
 		return '  {} = E "{}"'.format(self.time, self.name)
 
-def main():
+def convert_chart(file_in, file_out):
 	# Echo stuff before events
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			raise Exception("Chart has no Events Section")
 		
 		if re.match(r"\[Events\]\s*", line):
 			break
 		
-		sys.stdout.write(line)
+		file_out.write(line)
 	
 	# Read in current events
-	open_brace_line = sys.stdin.readline()
+	open_brace_line = file_in.readline()
 	if not re.match(r"\{\s*", open_brace_line):
 		raise Exception('Line after "[Events]" should contain only "{"')
 	
 	global_events = []
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			raise Exception("Unexpected EOF during events section")
 		event_match = re.match(r'\s*(\d+)\s*=\s*E\s*"([^"]*)"\s*', line)
@@ -71,7 +70,7 @@ def main():
 	# Read and store diffs before ExpertKeyboard
 	diff_text = ""
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			raise Exception("File has no ExpertKeyboard chart to convert")
 		
@@ -82,12 +81,12 @@ def main():
 	
 	# when we find ExpertKeyboard:
 	# read in the notes, converting them to lyric events
-	open_brace_line = sys.stdin.readline()
+	open_brace_line = file_in.readline()
 	if not re.match(r"\{\s*", open_brace_line):
 		raise Exception('Line after "[ExpertKeyboard]" should contain only "{"')
 	
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			raise Exception("Unexpected EOF during ExpertKeyboard chart")
 		
@@ -124,7 +123,7 @@ def main():
 	
 	# Read and store any diffs after ExpertKeyboard
 	while True:
-		line = sys.stdin.readline()
+		line = file_in.readline()
 		if line == "":
 			break
 		
@@ -134,14 +133,70 @@ def main():
 	global_events = sorted(global_events, key=attrgetter("time"))
 	
 	# Print the events section
-	print("[Events]")
-	print("{")
+	file_out.write("[Events]\n{\n")
 	for event in global_events:
-		print(event.get_code())
-	print("}")
+		file_out.write(event.get_code() + "\n")
+	file_out.write("}\n")
 	
 	# Print previously stored diffs
-	sys.stdout.write(diff_text)
+	file_out.write(diff_text)
 
 if __name__ == "__main__":
-	main()
+	import sys
+	import os
+	import shutil
+	from argparse import ArgumentParser
+
+	parser = ArgumentParser(description="Convert notes to lyric events in a Clone Hero chart")
+
+	parser.add_argument("input-file", nargs="?", help="Input chart location")
+	parser.add_argument("output-file", nargs="?", help="Output chart location")
+
+	args = parser.parse_args()
+
+	input_path = getattr(args, "input-file")
+	output_path = getattr(args, "output-file")
+
+	files_closable = False
+	created_backup = False
+
+	if input_path is None:
+		# No files specified, use stdin and stdout
+		file_in = sys.stdin
+		file_out = sys.stdout
+	
+	elif output_path is None:
+		# One file specified, move to .bak, write to original location
+		output_path = input_path
+		input_path += ".bak"
+
+		shutil.move(output_path, input_path)
+		created_backup = True
+
+		file_in = open(input_path)
+		file_out = open(output_path, "w")
+		files_closable = True
+	
+	else:
+		# Two files specified, use those locations
+		file_in = open(input_path)
+		file_out = open(output_path, "w")
+		files_closable = True
+
+	try:
+		convert_chart(file_in, file_out)
+		err = None
+	except Exception as e:
+		err = e
+	finally:
+		if files_closable:
+			file_in.close()
+			file_out.close()
+
+		if err:
+			os.remove(output_path)
+
+			if created_backup:
+				shutil.move(input_path, output_path)
+
+			raise err
