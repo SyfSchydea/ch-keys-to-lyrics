@@ -156,6 +156,8 @@ if __name__ == "__main__":
 	input_path = getattr(args, "input-file")
 	output_path = getattr(args, "output-file")
 
+	files_closable = False
+
 	if input_path is None:
 		# No files specified, use stdin and stdout
 		file_in = sys.stdin
@@ -170,10 +172,16 @@ if __name__ == "__main__":
 
 		file_in = open(input_path)
 		file_out = open(output_path, "w")
+		files_closable = True
 	
 	else:
 		# Two files specified, use those locations
-		# TODO: this
-		sys.exit(69)
+		file_in = open(input_path)
+		file_out = open(output_path, "w")
+		files_closable = True
 
 	convert_chart(file_in, file_out)
+
+	if files_closable:
+		file_in.close()
+		file_out.close()
