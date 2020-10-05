@@ -35,7 +35,73 @@ class ChartEvent:
 	def get_code(self):
 		return '  {} = E "{}"'.format(self.time, self.name)
 
-def convert_chart(file_in, file_out):
+# Manages the song's lyric file, which provides the lyric text to the events
+class LyricFile:
+	__slots__ = [
+		"file",
+
+		"line",
+		"col",
+	]
+
+	def __init__(self, path):
+		self.file = open(path)
+
+		self.line = 1
+		self.col = 0
+	
+	# Fetch the next syllable from the lyric file
+	def next_syllable(self):
+		syllable = ""
+
+		while True:
+			char = self.file.read(1)
+
+			if char == "\n":
+				self.line += 1
+				self.col = 0
+			else:
+				self.col += 1
+
+			if char in ["", "-", " ", "\t", "\n"]:
+				break
+
+			syllable += char
+
+		if syllable == "":
+			raise Exception(f"Got zero-length syllable at line {self.line}, col {self.col}")
+
+		# Skip over any blank lines
+		while True:
+			pos = self.file.tell()
+			char = self.file.read(1)
+
+			if char != "\n":
+				break
+
+			self.line += 1
+			self.col = 0
+
+		self.file.seek(pos)
+
+		return syllable
+
+	def close(self):
+		self.file.close()
+
+# Dummy class following the same interface as LyricFile
+# Used when no lyric file is given
+class DummyLyricFile:
+	def __init__(self, path=None):
+		pass
+	
+	def next_syllable(self):
+		return ""
+	
+	def close(self):
+		pass
+
+def convert_chart(file_in, file_out, lyric_file):
 	# Echo stuff before events
 	while True:
 		line = file_in.readline()
@@ -99,7 +165,7 @@ def convert_chart(file_in, file_out):
 			if note_match[2] == "1":
 				event_type = "phrase_start"
 			elif note_match[2] == "2":
-				event_type = "lyric "
+				event_type = "lyric " + lyric_file.next_syllable()
 			elif note_match[2] == "3":
 				event_type = "phrase_end"
 			
@@ -152,10 +218,17 @@ if __name__ == "__main__":
 	parser.add_argument("input-file", nargs="?", help="Input chart location")
 	parser.add_argument("output-file", nargs="?", help="Output chart location")
 
+	parser.add_argument("-l", "--lyrics", help="File containing the lyrics of the song")
+
 	args = parser.parse_args()
 
 	input_path = getattr(args, "input-file")
 	output_path = getattr(args, "output-file")
+
+	if args.lyrics is not None:
+		lyric_file = LyricFile(args.lyrics)
+	else:
+		lyric_file = DummyLyricFile()
 
 	files_closable = False
 	created_backup = False
@@ -184,7 +257,7 @@ if __name__ == "__main__":
 		files_closable = True
 
 	try:
-		convert_chart(file_in, file_out)
+		convert_chart(file_in, file_out, lyric_file)
 		err = None
 	except Exception as e:
 		err = e
@@ -192,6 +265,8 @@ if __name__ == "__main__":
 		if files_closable:
 			file_in.close()
 			file_out.close()
+
+		lyric_file.close()
 
 		if err:
 			os.remove(output_path)
