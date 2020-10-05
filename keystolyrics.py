@@ -157,6 +157,7 @@ if __name__ == "__main__":
 	output_path = getattr(args, "output-file")
 
 	files_closable = False
+	created_backup = False
 
 	if input_path is None:
 		# No files specified, use stdin and stdout
@@ -169,6 +170,7 @@ if __name__ == "__main__":
 		input_path += ".bak"
 
 		shutil.move(output_path, input_path)
+		created_backup = True
 
 		file_in = open(input_path)
 		file_out = open(output_path, "w")
@@ -180,8 +182,19 @@ if __name__ == "__main__":
 		file_out = open(output_path, "w")
 		files_closable = True
 
-	convert_chart(file_in, file_out)
+	try:
+		convert_chart(file_in, file_out)
+		err = None
+	except Exception as e:
+		err = e
 
 	if files_closable:
 		file_in.close()
 		file_out.close()
+
+	# On error, restore backup and re-raise
+	if err:
+		if created_backup:
+			shutil.move(input_path, output_path)
+
+		raise err
