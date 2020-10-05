@@ -143,6 +143,7 @@ def convert_chart(file_in, file_out):
 
 if __name__ == "__main__":
 	import sys
+	import os
 	import shutil
 	from argparse import ArgumentParser
 
@@ -187,14 +188,15 @@ if __name__ == "__main__":
 		err = None
 	except Exception as e:
 		err = e
+	finally:
+		if files_closable:
+			file_in.close()
+			file_out.close()
 
-	if files_closable:
-		file_in.close()
-		file_out.close()
+		if err:
+			os.remove(output_path)
 
-	# On error, restore backup and re-raise
-	if err:
-		if created_backup:
-			shutil.move(input_path, output_path)
+			if created_backup:
+				shutil.move(input_path, output_path)
 
-		raise err
+			raise err
