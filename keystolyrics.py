@@ -82,6 +82,9 @@ class LyricFile:
 
 	# Fetch the next syllable from the lyric file
 	def next_syllable(self):
+		if len(self.syllable_buffer) <= 0:
+			raise Exception(f"Line {self.line} is too short")
+
 		return self.syllable_buffer.popleft()
 
 	# Check that a line has ended when it should. This should coincide with phrase_end events
