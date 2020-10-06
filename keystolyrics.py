@@ -92,6 +92,16 @@ class LyricFile:
 		if len(self.syllable_buffer) > 0:
 			raise Exception(f"Line {self.line} ended too early")
 
+	# Checks if the file has reached the end. Throws an error if not
+	def end_file(self):
+		if len(self.syllable_buffer) > 0:
+			raise Exception("Too many syllables on final line")
+
+		ln = self.line
+		self.start_line()
+		if len(self.syllable_buffer) > 0:
+			raise Exception(f"Unused lines in lyric file. Song ended after line {ln}")
+
 	def close(self):
 		self.file.close()
 
@@ -104,6 +114,9 @@ class DummyLyricFile:
 	def next_syllable(self):
 		return ""
 	
+	def end_file(self):
+		pass
+
 	def close(self):
 		pass
 
@@ -194,7 +207,9 @@ def convert_chart(file_in, file_out, lyric_file):
 		
 		# If it's anything else, throw an error
 		raise Exception("Unexpected line during ExpertKeyboard chart: " + line)
-	
+
+	lyric_file.end_file()
+
 	# Read and store any diffs after ExpertKeyboard
 	while True:
 		line = file_in.readline()
