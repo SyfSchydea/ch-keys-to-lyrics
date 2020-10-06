@@ -67,6 +67,10 @@ class LyricFile:
 			if not blank_line.fullmatch(line):
 				break
 
+		# EOF
+		if line == "":
+			return
+
 		line = line.strip()
 
 		# Nested list of syllables in each word
