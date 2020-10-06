@@ -110,10 +110,16 @@ class LyricFile:
 class DummyLyricFile:
 	def __init__(self, path=None):
 		pass
-	
+
+	def start_line(self):
+		pass
+
 	def next_syllable(self):
 		return ""
-	
+
+	def end_line(self):
+		pass
+
 	def end_file(self):
 		pass
 
