@@ -26,6 +26,7 @@ Expected notes.chart format:
 
 import re
 from operator import attrgetter
+from collections import deque
 
 class ChartEvent:
 	def __init__(self, time, name):
@@ -35,7 +36,104 @@ class ChartEvent:
 	def get_code(self):
 		return '  {} = E "{}"'.format(self.time, self.name)
 
-def convert_chart(file_in, file_out):
+# Regexes used in parsing lyric files
+word_boundary = re.compile(r"\s+")
+syllable_boundary = re.compile(r"-")
+
+blank_line = re.compile(r"\s*\n")
+
+# Manages the song's lyric file, which provides the lyric text to the events
+class LyricFile:
+	__slots__ = [
+		"file",
+
+		"line",
+		"syllable_buffer",
+	]
+
+	def __init__(self, path):
+		self.file = open(path)
+
+		self.line = 0
+		self.syllable_buffer = deque()
+	
+	# Read the next line of syllables from the file. This should coincide with phrase_start events.
+	def start_line(self, expect_eof=False):
+		# Read a line, skipping any blank lines
+		while True:
+			line = self.file.readline()
+			self.line += 1
+
+			if not blank_line.fullmatch(line):
+				break
+
+		# EOF
+		if line == "":
+			if expect_eof:
+				return
+			else:
+				raise Exception("Not enough lines in lyric file")
+
+		line = line.strip()
+
+		# Nested list of syllables in each word
+		words = [syllable_boundary.split(word) for word in word_boundary.split(line)]
+
+		# Append dashes to syllables
+		for word in words:
+			for i in range(0, len(word) - 1):
+				word[i] += "-"
+
+		# Flatten the list
+		self.syllable_buffer.extend(s for w in words for s in w)
+
+	# Fetch the next syllable from the lyric file
+	def next_syllable(self):
+		if len(self.syllable_buffer) <= 0:
+			raise Exception(f"Line {self.line} is too short")
+
+		return self.syllable_buffer.popleft()
+
+	# Check that a line has ended when it should. This should coincide with phrase_end events
+	def end_line(self):
+		if len(self.syllable_buffer) > 0:
+			raise Exception(f"Line {self.line} ended too early")
+
+	# Checks if the file has reached the end. Throws an error if not
+	def end_file(self):
+		if len(self.syllable_buffer) > 0:
+			raise Exception("Too many syllables on final line")
+
+		ln = self.line
+		self.start_line(expect_eof=True)
+		if len(self.syllable_buffer) > 0:
+			raise Exception(f"Unused lines in lyric file. Song ended after line {ln}")
+
+	def close(self):
+		self.file.close()
+
+# Dummy class following the same interface as LyricFile
+# Used when no lyric file is given
+class DummyLyricFile:
+	def __init__(self, path=None):
+		pass
+
+	def start_line(self):
+		pass
+
+	def next_syllable(self):
+		return ""
+
+	def end_line(self):
+		pass
+
+	def end_file(self):
+		pass
+
+	def close(self):
+		pass
+
+def convert_chart(file_in, file_out, lyric_file):
 	# Echo stuff before events
 	while True:
 		line = file_in.readline()
@@ -97,10 +195,12 @@ def convert_chart(file_in, file_out):
 		if note_match:
 			event_type = None
 			if note_match[2] == "1":
+				lyric_file.start_line()
 				event_type = "phrase_start"
 			elif note_match[2] == "2":
-				event_type = "lyric "
+				event_type = "lyric " + lyric_file.next_syllable()
 			elif note_match[2] == "3":
+				lyric_file.end_line()
 				event_type = "phrase_end"
 			
 			event = ChartEvent(note_match[1], event_type)
@@ -120,7 +220,9 @@ def convert_chart(file_in, file_out):
 		
 		# If it's anything else, throw an error
 		raise Exception("Unexpected line during ExpertKeyboard chart: " + line)
-	
+
+	lyric_file.end_file()
+
 	# Read and store any diffs after ExpertKeyboard
 	while True:
 		line = file_in.readline()
@@ -152,10 +254,18 @@ if __name__ == "__main__":
 	parser.add_argument("input-file", nargs="?", help="Input chart location")
 	parser.add_argument("output-file", nargs="?", help="Output chart location")
 
+	parser.add_argument("-l", "--lyrics", metavar="LYRICS-FILE",
+			help="File containing the lyrics of the song")
+
 	args = parser.parse_args()
 
 	input_path = getattr(args, "input-file")
 	output_path = getattr(args, "output-file")
+
+	if args.lyrics is not None:
+		lyric_file = LyricFile(args.lyrics)
+	else:
+		lyric_file = DummyLyricFile()
 
 	files_closable = False
 	created_backup = False
@@ -184,7 +294,7 @@ if __name__ == "__main__":
 		files_closable = True
 
 	try:
-		convert_chart(file_in, file_out)
+		convert_chart(file_in, file_out, lyric_file)
 		err = None
 	except Exception as e:
 		err = e
@@ -192,6 +302,8 @@ if __name__ == "__main__":
 		if files_closable:
 			file_in.close()
 			file_out.close()
+
+		lyric_file.close()
 
 		if err:
 			os.remove(output_path)
