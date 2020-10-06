@@ -254,7 +254,8 @@ if __name__ == "__main__":
 	parser.add_argument("input-file", nargs="?", help="Input chart location")
 	parser.add_argument("output-file", nargs="?", help="Output chart location")
 
-	parser.add_argument("-l", "--lyrics", help="File containing the lyrics of the song")
+	parser.add_argument("-l", "--lyrics", metavar="LYRICS-FILE",
+			help="File containing the lyrics of the song")
 
 	args = parser.parse_args()
 
