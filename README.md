@@ -17,3 +17,17 @@ This usage will modify the chart in place. And create a backup appended with `.b
 	./keystolyrics.py
 
 This usage will read a chart file in from stdin and output to stdout.
+
+## Lyrics Files
+
+In addition to reading the lyric timing from the chart, the lyrics themselves may be read from a separate file.
+This file may be passed in using `-l` or `--lyrics`. These files should contain lyrics which match the
+syllables in the chart.
+Eg:
+
+	I'm in the mood
+	The rhy-thm is right
+	Move to the mu-sic
+	We can roll all night
+
+Note that words with multiple syllables are split up with dashes.
