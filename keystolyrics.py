@@ -133,6 +133,23 @@ class DummyLyricFile:
 	def close(self):
 		pass
 
+# Regexes used in parsing chart files
+
+# Section Headers
+events_header = re.compile(r"\s*\[Events\]\s*")
+expert_keyboard_header = re.compile(r"\s*\[ExpertKeyboard\]\s*")
+
+# Matches an event from the Events section
+event_line = re.compile(r'\s*(\d+)\s*=\s*E\s*"([^"]*)"\s*')
+
+# Matches notes which are to be converted to lyric objects
+lyric_note_line = re.compile(r'\s*(\d+)\s*=\s*N\s*([1-3])\s*\d+\s*')
+
+# Matches lines like: 6912 = N 2 0
+#                     6219 = S 2 120
+#                     6329 = E solo
+any_note_line = re.compile(r'\s*\d+\s*=\s*(?:[NS]\s*\d+\s*\d+|E\s*[a-zA-Z\d_]+)\s*')
+
 def convert_chart(file_in, file_out, lyric_file):
 	# Echo stuff before events
 	while True:
@@ -140,14 +157,14 @@ def convert_chart(file_in, file_out, lyric_file):
 		if line == "":
 			raise Exception("Chart has no Events Section")
 		
-		if re.match(r"\[Events\]\s*", line):
+		if events_header.fullmatch(line):
 			break
 		
 		file_out.write(line)
 	
 	# Read in current events
 	open_brace_line = file_in.readline()
-	if not re.match(r"\{\s*", open_brace_line):
+	if open_brace_line.strip() != "{":
 		raise Exception('Line after "[Events]" should contain only "{"')
 	
 	global_events = []
@@ -155,12 +172,12 @@ def convert_chart(file_in, file_out, lyric_file):
 		line = file_in.readline()
 		if line == "":
 			raise Exception("Unexpected EOF during events section")
-		event_match = re.match(r'\s*(\d+)\s*=\s*E\s*"([^"]*)"\s*', line)
+		event_match = event_line.fullmatch(line)
 		
 		if event_match:
 			event = ChartEvent(event_match[1], event_match[2])
 			global_events.append(event)
-		elif re.match(r"\}\s*", line):
+		elif line.strip() == "}":
 			break
 		else:
 			raise Exception("Unexpected line in Events section: " + line)
@@ -172,7 +189,7 @@ def convert_chart(file_in, file_out, lyric_file):
 		if line == "":
 			raise Exception("File has no ExpertKeyboard chart to convert")
 		
-		if re.match(r"\[ExpertKeyboard\]\s*", line):
+		if expert_keyboard_header.fullmatch(line):
 			break
 		
 		diff_text += line
@@ -180,7 +197,7 @@ def convert_chart(file_in, file_out, lyric_file):
 	# when we find ExpertKeyboard:
 	# read in the notes, converting them to lyric events
 	open_brace_line = file_in.readline()
-	if not re.match(r"\{\s*", open_brace_line):
+	if open_brace_line.strip() != "{":
 		raise Exception('Line after "[ExpertKeyboard]" should contain only "{"')
 	
 	while True:
@@ -191,7 +208,7 @@ def convert_chart(file_in, file_out, lyric_file):
 		# If it's a valid note, on an appropriate fret, log the relevant event
 		# Matches a line like: 6912 = N 2 0
 		# Only the timestamp (6912) and fret id (2) are captured
-		note_match = re.match(r'\s*(\d+)\s*=\s*N\s*([1-3])\s*\d+\s*', line)
+		note_match = lyric_note_line.fullmatch(line)
 		if note_match:
 			event_type = None
 			if note_match[2] == "1":
@@ -208,14 +225,11 @@ def convert_chart(file_in, file_out, lyric_file):
 			continue
 		
 		# If it's any other note, or star power etc, ignore it
-		# Matches lines like: 6912 = N 2 0
-		#                     6219 = S 2 120
-		#                     6329 = E solo
-		if re.match(r'\s*\d+\s*=\s*(?:[NS]\s*\d+\s*\d+|E\s*[a-zA-Z\d_]+)\s*', line):
+		if any_note_line.fullmatch(line):
 			continue
 		
 		# If it's a closing brace, break
-		if re.match(r"\}\s*", line):
+		if line.strip() == "}":
 			break
 		
 		# If it's anything else, throw an error
