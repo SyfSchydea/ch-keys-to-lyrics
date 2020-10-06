@@ -58,7 +58,7 @@ class LyricFile:
 		self.syllable_buffer = deque()
 	
 	# Read the next line of syllables from the file. This should coincide with phrase_start events.
-	def start_line(self):
+	def start_line(self, expect_eof=False):
 		# Read a line, skipping any blank lines
 		while True:
 			line = self.file.readline()
@@ -69,7 +69,10 @@ class LyricFile:
 
 		# EOF
 		if line == "":
-			return
+			if expect_eof:
+				return
+			else:
+				raise Exception("Not enough lines in lyric file")
 
 		line = line.strip()
 
@@ -102,7 +105,7 @@ class LyricFile:
 			raise Exception("Too many syllables on final line")
 
 		ln = self.line
-		self.start_line()
+		self.start_line(expect_eof=True)
 		if len(self.syllable_buffer) > 0:
 			raise Exception(f"Unused lines in lyric file. Song ended after line {ln}")
 
