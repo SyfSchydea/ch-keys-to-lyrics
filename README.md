@@ -6,15 +6,15 @@ and phrase_end events. This makes it easier to visualise, or hear the lyric timi
 
 ## Usage
 
-	./keystolyrics.py <chart in> <chart out>
+	./keystolyrics.py <chart in> <chart out> [options...]
 
 This usage will read a script in from the first file, and output to the second file, overwriting an existing file if neccessary.
 
-	./keystolyrics.py <chart>
+	./keystolyrics.py <chart> [options...]
 
 This usage will modify the chart in place. And create a backup appended with `.bak`.
 
-	./keystolyrics.py
+	./keystolyrics.py [options...]
 
 This usage will read a chart file in from stdin and output to stdout.
 
