@@ -137,7 +137,6 @@ class DummyLyricFile:
 
 # Section Headers
 events_header = re.compile(r"\s*\[Events\]\s*")
-expert_keyboard_header = re.compile(r"\s*\[ExpertKeyboard\]\s*")
 
 # Matches an event from the Events section
 event_line = re.compile(r'\s*(\d+)\s*=\s*E\s*"([^"]*)"\s*')
@@ -150,7 +149,7 @@ lyric_note_line = re.compile(r'\s*(\d+)\s*=\s*N\s*([1-3])\s*\d+\s*')
 #                     6329 = E solo
 any_note_line = re.compile(r'\s*\d+\s*=\s*(?:[NS]\s*\d+\s*\d+|E\s*[a-zA-Z\d_]+)\s*')
 
-def convert_chart(file_in, file_out, lyric_file):
+def convert_chart(file_in, file_out, lyric_file, chart="ExpertKeyboard"):
 	# Echo stuff before events
 	while True:
 		line = file_in.readline()
@@ -183,13 +182,14 @@ def convert_chart(file_in, file_out, lyric_file):
 			raise Exception("Unexpected line in Events section: " + line)
 	
 	# Read and store diffs before ExpertKeyboard
+	lyric_chart_header = re.compile(rf"\s*\[{chart}\]\s*")
 	diff_text = ""
 	while True:
 		line = file_in.readline()
 		if line == "":
 			raise Exception("File has no ExpertKeyboard chart to convert")
 		
-		if expert_keyboard_header.fullmatch(line):
+		if lyric_chart_header.fullmatch(line):
 			break
 		
 		diff_text += line
