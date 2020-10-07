@@ -270,6 +270,8 @@ if __name__ == "__main__":
 
 	parser.add_argument("-l", "--lyrics", metavar="LYRICS-FILE",
 			help="File containing the lyrics of the song")
+	parser.add_argument("-c", "--chart", metavar="CHART", default="ExpertKeyboard",
+			help="Which chart to take lyric timing from. Defaults to ExpertKeyboard")
 
 	args = parser.parse_args()
 
@@ -308,7 +310,7 @@ if __name__ == "__main__":
 		files_closable = True
 
 	try:
-		convert_chart(file_in, file_out, lyric_file)
+		convert_chart(file_in, file_out, lyric_file, args.chart)
 		err = None
 	except Exception as e:
 		err = e
